@@ -161,7 +161,7 @@ PLAYERS_DATA = [
 
 df_players = pd.DataFrame(PLAYERS_DATA)
 player_options = ["선택 안 함"] + [
-    f"{row['선수명']} ({row['학교']}, {row['포지션']})"
+    f"{row['선수명']} ({row['학교']}, {row['포지션']}, {row['신장']})"
     for _, row in df_players.iterrows()
 ]
 
