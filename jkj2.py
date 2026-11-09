@@ -13,21 +13,13 @@ st.set_page_config(
     layout="centered",
 )
 
-# 이미지의 레드/블랙 UI 테마를 적용하는 Custom CSS
+# KGC 레드/블랙 UI 테마 Custom CSS
 st.markdown(
     """
 <style>
     .stApp {
         background-color: #C8102E;
         color: #ffffff;
-    }
-    .preview-mode {
-        background-color: #ffffff;
-        color: #333333;
-        padding: 12px 20px;
-        border-radius: 10px;
-        font-size: 13px;
-        margin-bottom: 20px;
     }
     .schedule-box {
         background-color: #141414;
@@ -54,13 +46,23 @@ st.markdown(
         padding: 18px;
         margin-bottom: 25px;
     }
+    .round-title {
+        background-color: #141414;
+        color: #FFD700;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-top: 15px;
+        margin-bottom: 10px;
+        display: inline-block;
+    }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 # ---------------------------------------------------------
-# 2. 공용 파일 데이터베이스 (DB) 로직
+# 2. 공용 파일 데이터베이스 (DB) 로직 (수정 비밀번호 지원)
 # ---------------------------------------------------------
 DB_FILE = "shared_predictions.json"
 
@@ -76,26 +78,47 @@ def load_all_predictions():
     return []
 
 
-def save_prediction_to_db(nickname, picks):
-    """새로운 참가자 예측을 공용 파일에 저장합니다."""
+def save_or_update_prediction(nickname, password, picks_r1, picks_r2):
+    """
+    닉네임이 이미 존재하면 비밀번호 확인 후 수정,
+    새로운 닉네임이면 추가합니다.
+    """
     data = load_all_predictions()
-    # 기존 닉네임 중복 시 업데이트, 없으면 추가
-    updated = False
+
     for item in data:
         if item["nickname"] == nickname:
-            item["picks"] = picks
-            updated = True
-            break
-    if not updated:
-        data.append({"nickname": nickname, "picks": picks})
+            # 기존 사용자: 비밀번호 확인
+            if item.get("password") == password:
+                item["picks_r1"] = picks_r1
+                item["picks_r2"] = picks_r2
+                with open(DB_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                return True, " 기존 예측 카드가 수정되었습니다! ✏️"
+            else:
+                return (
+                    False,
+                    "⚠️ 이미 등록된 닉네임입니다. 비밀번호가 일치하지 않습니다.",
+                )
 
+    # 신규 사용자 등록
+    data.append(
+        {
+            "nickname": nickname,
+            "password": password,
+            "picks_r1": picks_r1,
+            "picks_r2": picks_r2,
+        }
+    )
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    return True, "🎉 새로운 예측 카드가 성공적으로 등록되었습니다!"
 
 
-def encode_share_data(nickname, picks):
+def encode_share_data(nickname, picks_r1, picks_r2):
     """예측 결과를 URL 전송용 단축 텍스트로 인코딩합니다."""
-    payload = json.dumps({"nickname": nickname, "picks": picks})
+    payload = json.dumps(
+        {"nickname": nickname, "picks_r1": picks_r1, "picks_r2": picks_r2}
+    )
     return base64.b64encode(payload.encode("utf-8")).decode("utf-8")
 
 
@@ -109,54 +132,54 @@ def decode_share_data(encoded_str):
 
 
 # ---------------------------------------------------------
-# 3. 드래프트 지명 후보 선수 데이터 세트
+# 3. 드래프트 지명 후보 선수 데이터 세트 (20명 지명에 충분하도록 확장)
 # ---------------------------------------------------------
 PLAYERS_DATA = [
     {"선수명": "이주석", "학교": "건국대", "포지션": "F", "신장": 187},
-    {"선수명": "여찬영", "학교": "건국대", "포지션": "G", "신장": 182},
-    {"선수명": "전기현", "학교": "건국대", "포지션": "F", "신장": 194},
-    {"선수명": "이동근", "학교": "고려대", "포지션": "F", "신장": 197},
-    {"선수명": "이경민", "학교": "중앙대", "포지션": "G", "신장": 183},
-    {"선수명": "김두진", "학교": "중앙대", "포지션": "F", "신장": 197},
-    {"선수명": "유형우", "학교": "중앙대", "포지션": "G", "신장": 185},
-    {"선수명": "원건", "학교": "중앙대", "포지션": "G", "신장": 185},
-    {"선수명": "장지민", "학교": "명지대", "포지션": "G", "신장": 183},
-    {"선수명": "김서원파이팅", "학교": "경희대", "포지션": "G", "신장": 184},
-    {"선수명": "임성채", "학교": "경희대", "포지션": "G", "신장": 185},
-    {"선수명": "이해솔", "학교": "연세대", "포지션": "G", "신장": 188},
-    {"선수명": "부드러운홍상민", "학교": "연세대", "포지션": "C", "신장": 199},
-    {"선수명": "이채형", "학교": "연세대", "포지션": "G", "신장": 186},
-    {"선수명": "이주영", "학교": "연세대", "포지션": "G", "신장": 188},
-    {"선수명": "김태영", "학교": "단국대", "포지션": "G", "신장": 183},
-    {"선수명": "최준환", "학교": "상명대", "포지션": "C", "신장": 195},
-    {"선수명": "송정우", "학교": "상명대", "포지션": "F", "신장": 192},
-    {"선수명": "이한결", "학교": "동국대", "포지션": "G", "신장": 181},
-    {"선수명": "우성희", "학교": "동국대", "포지션": "C", "신장": 199},
-    {"선수명": "유정원", "학교": "동국대", "포지션": "G", "신장": 191},
-    {"선수명": "김상윤", "학교": "동국대", "포지션": "F", "신장": 187},
-    {"선수명": "한재혁", "학교": "동국대", "포지션": "G", "신장": 180},
-    {"선수명": "백승혁", "학교": "동국대wise", "포지션": "G", "신장": 185},
-    {"선수명": "구인교", "학교": "성균관대", "포지션": "F", "신장": 194},
-    {"선수명": "김태형", "학교": "성균관대", "포지션": "G", "신장": 180},
-    {"선수명": "박상혁", "학교": "성균관대", "포지션": "F", "신장": 189},
-    {"선수명": "원준석", "학교": "성균관대", "포지션": "F", "신장": 195},
-    {"선수명": "김수오", "학교": "경희대", "포지션": "F", "신장": 199},
-    {"선수명": "김승우", "학교": "연세대", "포지션": "F", "신장": 192},
-    {"선수명": "류정열", "학교": "한양대", "포지션": "C", "신장": 207},
-    {"선수명": "김현우", "학교": "한양대", "포지션": "G", "신장": 178},
-    {"선수명": "마윤재", "학교": ".", "포지션": "F", "신장": 188},
-    {"선수명": "오벨레제이슨", "학교": "동국대wise", "포지션": "G", "신장": 186},
-    {"선수명": "임동일", "학교": "동국대wise", "포지션": "C", "신장": 214},
-    {"선수명": "조풍", "학교": "동국대wise", "포지션": "G", "신장": 178},
-    {"선수명": "심주언", "학교": "고려대", "포지션": "G/F", "신장": 190},
-    {"선수명": "고찬유", "학교": "중앙대", "포지션": "G", "신장": 190},
-    {"선수명": "이관우", "학교": "성균관대", "포지션": "G", "신장": 180},
-    {"선수명": "구민교", "학교": "성균관대", "포지션": "F", "신장": 197},
-    {"선수명": "손유찬", "학교": "한양대", "포지션": "G", "신장": 182},
-    {"선수명": "이주민", "학교": "성균관대", "포지션": "F", "신장": 196},
-    {"선수명": "김현빈", "학교": "한양대", "포지션": "F", "신장": 186},
-    {"선수명": "이건희", "학교": "고려대", "포지션": "G", "신장": 186},
-
+    {"선수명": "여찬영", "학교": "건국대", "포지션": "G", "신장": 182},
+    {"선수명": "전기현", "학교": "건국대", "포지션": "F", "신장": 194},
+    {"선수명": "이동근", "학교": "고려대", "포지션": "F", "신장": 197},
+    {"선수명": "이경민", "학교": "중앙대", "포지션": "G", "신장": 183},
+    {"선수명": "김두진", "학교": "중앙대", "포지션": "F", "신장": 197},
+    {"선수명": "유형우", "학교": "중앙대", "포지션": "G", "신장": 185},
+    {"선수명": "원건", "학교": "중앙대", "포지션": "G", "신장": 185},
+    {"선수명": "장지민", "학교": "명지대", "포지션": "G", "신장": 183},
+    {"선수명": "김서원파이팅", "학교": "경희대", "포지션": "G", "신장": 184},
+    {"선수명": "임성채", "학교": "경희대", "포지션": "G", "신장": 185},
+    {"선수명": "이해솔", "학교": "연세대", "포지션": "G", "신장": 188},
+    {"선수명": "부드러운홍상민", "학교": "연세대", "포지션": "C", "신장": 199},
+    {"선수명": "이채형", "학교": "연세대", "포지션": "G", "신장": 186},
+    {"선수명": "이주영", "학교": "연세대", "포지션": "G", "신장": 188},
+    {"선수명": "김태영", "학교": "단국대", "포지션": "G", "신장": 183},
+    {"선수명": "최준환", "학교": "상명대", "포지션": "C", "신장": 195},
+    {"선수명": "송정우", "학교": "상명대", "포지션": "F", "신장": 192},
+    {"선수명": "이한결", "학교": "동국대", "포지션": "G", "신장": 181},
+    {"선수명": "우성희", "학교": "동국대", "포지션": "C", "신장": 199},
+    {"선수명": "유정원", "학교": "동국대", "포지션": "G", "신장": 191},
+    {"선수명": "김상윤", "학교": "동국대", "포지션": "F", "신장": 187},
+    {"선수명": "한재혁", "학교": "동국대", "포지션": "G", "신장": 180},
+    {"선수명": "백승혁", "학교": "동국대wise", "포지션": "G", "신장": 185},
+    {"선수명": "구인교", "학교": "성균관대", "포지션": "F", "신장": 194},
+    {"선수명": "김태형", "학교": "성균관대", "포지션": "G", "신장": 180},
+    {"선수명": "박상혁", "학교": "성균관대", "포지션": "F", "신장": 189},
+    {"선수명": "원준석", "학교": "성균관대", "포지션": "F", "신장": 195},
+    {"선수명": "김수오", "학교": "경희대", "포지션": "F", "신장": 199},
+    {"선수명": "김승우", "학교": "연세대", "포지션": "F", "신장": 192},
+    {"선수명": "류정열", "학교": "한양대", "포지션": "C", "신장": 207},
+    {"선수명": "김현우", "학교": "한양대", "포지션": "G", "신장": 178},
+    {"선수명": "마윤재", "학교": ".", "포지션": "F", "신장": 188},
+    {"선수명": "오벨레제이슨", "학교": "동국대wise", "포지션": "G", "신장": 186},
+    {"선수명": "임동일", "학교": "동국대wise", "포지션": "C", "신장": 214},
+    {"선수명": "조풍", "학교": "동국대wise", "포지션": "G", "신장": 178},
+    {"선수명": "심주언", "학교": "고려대", "포지션": "G/F", "신장": 190},
+    {"선수명": "고찬유", "학교": "중앙대", "포지션": "G", "신장": 190},
+    {"선수명": "이관우", "학교": "성균관대", "포지션": "G", "신장": 180},
+    {"선수명": "구민교", "학교": "성균관대", "포지션": "F", "신장": 197},
+    {"선수명": "손유찬", "학교": "한양대", "포지션": "G", "신장": 182},
+    {"선수명": "이주민", "학교": "성균관대", "포지션": "F", "신장": 196},
+    {"선수명": "김현빈", "학교": "한양대", "포지션": "F", "신장": 186},
+    {"선수명": "이건희", "학교": "고려대", "포지션": "G", "신장": 186},
+    
 ]
 
 df_players = pd.DataFrame(PLAYERS_DATA)
@@ -177,10 +200,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.write(
-    "정관장이 뽑을 추첨 순위와, 그 순위로 가장 먼저 지명할 선수를 맞히는 게임입니다."
+    "정관장이 뽑을 추첨 순위와, 1~2라운드 1~10순위 지명 선수를 예측해 보세요!"
 )
 
-# URL 쿼리 파라미터 확인 (친구가 공유한 링크로 접속한 경우)
+# URL 공유 접속 확인
 query_params = st.query_params
 shared_data = None
 if "share" in query_params:
@@ -191,45 +214,64 @@ if shared_data:
         f"""
     <div class="shared-card-box">
         <h4>📩 친구가 공유한 예측 카드 도착!</h4>
-        <p><b>{shared_data.get('nickname')}</b> 님이 작성한 1~10순위 예측 결과입니다.</p>
+        <p><b>{shared_data.get('nickname')}</b> 님의 1~2라운드 예측 결과입니다.</p>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-    # 공유받은 카드 출력
     with st.expander(
-        f"⭐ {shared_data.get('nickname')} 님의 예측 보기", expanded=True
+        f"⭐ {shared_data.get('nickname')} 님의 예측 카드 보기",
+        expanded=True,
     ):
-        r1_cols = st.columns(5)
+        st.markdown(
+            '<div class="round-title">🥇 1라운드 1~10순위</div>',
+            unsafe_allow_html=True,
+        )
+        p1 = shared_data.get("picks_r1", {})
+        r1_c1 = st.columns(5)
         for r in range(1, 6):
-            with r1_cols[r - 1]:
-                p_name = shared_data["picks"]
+            with r1_c1[r - 1]:
                 st.metric(
-                    f"{r}순위",
-                    p_name[f"{r}순위"].split(" (")[0]
-                    if f"{r}순위" in p_name
-                    else "-",
+                    f"1R {r}순위",
+                    p1.get(f"1R_{r}순위", "-").split(" (")[0],
                 )
-        r2_cols = st.columns(5)
+        r1_c2 = st.columns(5)
         for r in range(6, 11):
-            with r2_cols[r - 6]:
-                p_name = shared_data["picks"]
+            with r1_c2[r - 6]:
                 st.metric(
-                    f"{r}순위",
-                    p_name[f"{r}순위"].split(" (")[0]
-                    if f"{r}순위" in p_name
-                    else "-",
+                    f"1R {r}순위",
+                    p1.get(f"1R_{r}순위", "-").split(" (")[0],
                 )
 
-# 일정 안 함 박스
+        st.markdown(
+            '<div class="round-title">🥈 2라운드 1~10순위</div>',
+            unsafe_allow_html=True,
+        )
+        p2 = shared_data.get("picks_r2", {})
+        r2_c1 = st.columns(5)
+        for r in range(1, 6):
+            with r2_c1[r - 1]:
+                st.metric(
+                    f"2R {r}순위",
+                    p2.get(f"2R_{r}순위", "-").split(" (")[0],
+                )
+        r2_c2 = st.columns(5)
+        for r in range(6, 11):
+            with r2_c2[r - 6]:
+                st.metric(
+                    f"2R {r}순위",
+                    p2.get(f"2R_{r}순위", "-").split(" (")[0],
+                )
+
+# 일정 안내 박스
 col_sch1, col_sch2 = st.columns(2)
 with col_sch1:
     st.markdown(
         """
     <div class="schedule-box">
         <h5>순위 추첨 · 11/9(월)</h5>
-        <p>1:KT, 2:현대모비스, 3:sk, 4:정관장, 5:가스공사, 6:DB, 7:삼성, 8:LG, 9:소노, 10:KCC </p>
+        <p>결과 대기 중</p>
     </div>
     """,
         unsafe_allow_html=True,
@@ -246,73 +288,112 @@ with col_sch2:
     )
 
 # ---------------------------------------------------------
-# 5. 1~10순위 지명 예측 입력 폼
+# 5. 1~2라운드 예측 입력 & 수정 폼
 # ---------------------------------------------------------
-st.markdown("### 🏀 내 예측 카드 작성 및 공유하기")
+st.markdown("### 🏀 내 예측 카드 작성 및 수정하기")
+st.caption(
+    "💡 이미 예측을 제출했더라도 **동일한 닉네임과 비밀번호**를 입력하면 나중에 언제든지 수정할 수 있습니다."
+)
 
 with st.form("draft_predict_form"):
-    nickname = st.text_input(
-        "참가자 닉네임", placeholder="닉네임을 입력하세요 (예: 레드부스터스팬)"
+    col_user1, col_user2 = st.columns(2)
+    with col_user1:
+        nickname = st.text_input(
+            "참가자 닉네임",
+            placeholder="닉네임 입력 (예: 레드부스터스팬)",
+        )
+    with col_user2:
+        password = st.text_input(
+            "비밀번호 (수정 시 사용)",
+            type="password",
+            placeholder="비밀번호 4자리 이상",
+        )
+
+    # 라운드별 탭 구성
+    tab1, tab2 = st.tabs(
+        ["🥇 1라운드 1~10순위 예측", "🥈 2라운드 1~10순위 예측"]
     )
 
-    user_picks = {}
-    cols = st.columns(2)
-    for rank in range(1, 11):
-        col_idx = (rank - 1) % 2
-        with cols[col_idx]:
-            user_picks[f"{rank}순위"] = st.selectbox(
-                f"⚙️ {rank}순위 지명 선수",
-                options=player_options,
-                key=f"rank_{rank}",
-            )
+    user_picks_r1 = {}
+    with tab1:
+        st.write("1라운드 1순위부터 10순위에 들어갈 선수를 선택하세요.")
+        cols_r1 = st.columns(2)
+        for rank in range(1, 11):
+            c_idx = (rank - 1) % 2
+            with cols_r1[c_idx]:
+                user_picks_r1[f"1R_{rank}순위"] = st.selectbox(
+                    f"1R {rank}순위 지명 선수",
+                    options=player_options,
+                    key=f"r1_{rank}",
+                )
+
+    user_picks_r2 = {}
+    with tab2:
+        st.write("2라운드 1순위부터 10순위에 들어갈 선수를 선택하세요.")
+        cols_r2 = st.columns(2)
+        for rank in range(1, 11):
+            c_idx = (rank - 1) % 2
+            with cols_r2[c_idx]:
+                user_picks_r2[f"2R_{rank}순위"] = st.selectbox(
+                    f"2R {rank}순위 지명 선수",
+                    options=player_options,
+                    key=f"r2_{rank}",
+                )
 
     submit_button = st.form_submit_button(
-        "내 카드 만들기 & 공유하기 🎟️", use_container_width=True
+        "내 카드 저장 및 공유하기 🎟️", use_container_width=True
     )
 
     if submit_button:
         if not nickname.strip():
             st.error("닉네임을 입력해 주세요!")
+        elif not password.strip():
+            st.error("수정할 때 사용할 비밀번호를 입력해 주세요!")
         else:
-            selected_list = [
-                v for k, v in user_picks.items() if v != "선택 안 함"
+            selected_r1 = [
+                v for v in user_picks_r1.values() if v != "선택 안 함"
             ]
+            selected_r2 = [
+                v for v in user_picks_r2.values() if v != "선택 안 함"
+            ]
+            total_selected = selected_r1 + selected_r2
 
-            if len(selected_list) != len(set(selected_list)):
+            if len(selected_r1) < 10 or len(selected_r2) < 10:
                 st.warning(
-                    "⚠️ 동일한 선수를 여러 순위에 중복해서 선택할 수 없습니다."
+                    "⚠️ 1라운드와 2라운드 1~10순위 선수를 모두 선택해 주세요."
                 )
-            elif len(selected_list) < 10:
+            elif len(total_selected) != len(set(total_selected)):
                 st.warning(
-                    "⚠️ 1순위부터 10순위까지 모든 선수를 선택해 주세요."
+                    "⚠️ 전체 라운드에서 동일한 선수를 중복해서 지명할 수 없습니다."
                 )
             else:
-                # 공용 DB 파일에 저장
-                save_prediction_to_db(nickname, user_picks)
-
-                # 공유용 URL 코드 생성
-                encoded_code = encode_share_data(nickname, user_picks)
-                st.session_state["last_share_code"] = encoded_code
-                st.success(
-                    f"🎉 '{nickname}' 님의 카드가 성공적으로 등록되었습니다!"
+                # DB 저장 또는 수정 수행
+                success, msg = save_or_update_prediction(
+                    nickname, password, user_picks_r1, user_picks_r2
                 )
+                if success:
+                    encoded_code = encode_share_data(
+                        nickname, user_picks_r1, user_picks_r2
+                    )
+                    st.session_state["last_share_code"] = encoded_code
+                    st.success(msg)
+                else:
+                    st.error(msg)
 
 # ---------------------------------------------------------
-# 6. 생성된 카드 공유 링크 표시
+# 6. 카드 공유 링크 생성
 # ---------------------------------------------------------
 if "last_share_code" in st.session_state:
     st.markdown("#### 🔗 친구에게 내 예측 카드 공유하기")
     share_code = st.session_state["last_share_code"]
-
-    # 파라미터가 포함된 전체 URL 안내 (실제 배포 주소로 변경하여 사용)
     share_param_text = f"?share={share_code}"
     st.info(
-        "아래 공유 파라미터 코드를 주소창 끝에 붙여 친구에게 전송하거나 복사하세요!"
+        "아래 파라미터 주소를 복사해 친구에게 전달하면 내 1~2라운드 예측 카드를 보여줄 수 있습니다!"
     )
     st.code(share_param_text, language="text")
 
 # ---------------------------------------------------------
-# 7. 전체 참가자 예측 카드 리스트 (실시간 공용 목록)
+# 7. 전체 참가자 예측 카드 목록 (실시간 공용 DB)
 # ---------------------------------------------------------
 st.markdown("---")
 st.markdown("### 👥 전체 참가자 예측 목록")
@@ -323,35 +404,42 @@ if not all_predictions:
     st.markdown(
         """
     <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; color: #666; text-align: center;">
-        🤖 아직 등록된 참가자가 없습니다. 첫 예측 카드를 만들어 보세요!
+        🤖 아직 등록된 참가자가 없습니다. 첫 1~2라운드 예측 카드를 만들어 보세요!
     </div>
     """,
         unsafe_allow_html=True,
     )
 else:
     for item in reversed(all_predictions):
-        p_name_user = item["nickname"]
-        p_picks = item["picks"]
+        p_nickname = item["nickname"]
+        p1 = item.get("picks_r1", {})
+        p2 = item.get("picks_r2", {})
 
         with st.expander(
-            f"👤 {p_name_user} 님의 1~10순위 예측 카드", expanded=False
+            f"👤 {p_nickname} 님의 1~2라운드 예측 카드", expanded=False
         ):
-            r1_cols = st.columns(5)
+            st.markdown("##### 🥇 1라운드 예측 (1~10순위)")
+            r1_cols1 = st.columns(5)
             for r in range(1, 6):
-                with r1_cols[r - 1]:
-                    name_only = (
-                        p_picks[f"{r}순위"].split(" (")[0]
-                        if f"{r}순위" in p_picks
-                        else "-"
-                    )
-                    st.metric(f"{r}순위", name_only)
+                with r1_cols1[r - 1]:
+                    name_only = p1.get(f"1R_{r}순위", "-").split(" (")[0]
+                    st.metric(f"1R {r}순위", name_only)
 
-            r2_cols = st.columns(5)
+            r1_cols2 = st.columns(5)
             for r in range(6, 11):
-                with r2_cols[r - 6]:
-                    name_only = (
-                        p_picks[f"{r}순위"].split(" (")[0]
-                        if f"{r}순위" in p_picks
-                        else "-"
-                    )
-                    st.metric(f"{r}순위", name_only)
+                with r1_cols2[r - 6]:
+                    name_only = p1.get(f"1R_{r}순위", "-").split(" (")[0]
+                    st.metric(f"1R {r}순위", name_only)
+
+            st.markdown("##### 🥈 2라운드 예측 (1~10순위)")
+            r2_cols1 = st.columns(5)
+            for r in range(1, 6):
+                with r2_cols1[r - 1]:
+                    name_only = p2.get(f"2R_{r}순위", "-").split(" (")[0]
+                    st.metric(f"2R {r}순위", name_only)
+
+            r2_cols2 = st.columns(5)
+            for r in range(6, 11):
+                with r2_cols2[r - 6]:
+                    name_only = p2.get(f"2R_{r}순위", "-").split(" (")[0]
+                    st.metric(f"2R {r}순위", name_only)
