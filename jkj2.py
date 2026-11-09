@@ -200,7 +200,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.write(
-    "정관장이 뽑을 추첨 순위와, 1~2라운드 1~10순위 지명 선수를 예측해 보세요!"
+    "1,2라운드 1~10순위 지명 선수를 예측해 보세요!"
 )
 
 # URL 공유 접속 확인
@@ -271,7 +271,7 @@ with col_sch1:
         """
     <div class="schedule-box">
         <h5>순위 추첨 · 11/9(월)</h5>
-        <p>결과 대기 중</p>
+        <p>1순위:KT, 2순위:현대모비스, 3순위:SK, 4순위:정관장♥, 5순위:한국가스공가, 6순위:DB, 7순위:삼성, 8순위:LG, 9순위:소노, 10순위:KCC</p>
     </div>
     """,
         unsafe_allow_html=True,
