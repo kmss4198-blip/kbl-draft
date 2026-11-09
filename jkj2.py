@@ -229,7 +229,7 @@ with col_sch1:
         """
     <div class="schedule-box">
         <h5>순위 추첨 · 11/9(월)</h5>
-        <p>결과 대기 중</p>
+        <p>1:KT, 2:현대모비스, 3:sk, 4:정관장, 5:가스공사, 6:DB, 7:삼성, 8:LG, 9:소노, 10:KCC </p>
     </div>
     """,
         unsafe_allow_html=True,
